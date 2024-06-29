@@ -68,7 +68,11 @@ data ingestion steps:
 
 ![Diagram that shows data extracted, transformed with Azure Synapse Analytics, stored in a Storage Account, and served to Azure Machine Learning.](https://learn.microsoft.com/en-us/training/wwl-data-ai/design-data-ingestion-strategy-for-machine-learning-projects/media/04-01-pipeline.png)
 
-# Design machine learning
+
+
+# Design a machine learning model training solution
+
+## +Identify machine learning tasks
 
 1. **Classification**: Predict a categorical value.
 2. **Regression**: Predict a numerical value.
@@ -78,8 +82,125 @@ data ingestion steps:
 
 
 
+## +Choose a service to train a machine learning model
+
+**Azure Machine Learning** gives you many different options to train and manage your machine learning models. You can choose to work with the Studio for a UI-based experience, or manage your machine learning workloads with the Python SDK, or CLI for a code-first experience. Learn more about [Azure Machine Learning](https://learn.microsoft.com/en-us/azure/machine-learning/overview-what-is-azure-machine-learning).
+
+**Azure AI Services** is a collection of prebuilt machine learning models you can use for common machine learning tasks such as object detection in images. The models are offered as an application programming interface (API), so you can easily integrate a model with your application. Some models can be customized with your own training data, saving time and resources to train a new model from scratch. Learn more about [Azure AI Services](https://learn.microsoft.com/en-us/azure/cognitive-services/what-are-cognitive-services).
+
+
+
+Difference between services
+
+- Use Azure AI Services whenever one of the customizable prebuilt models suits your requirements, to **save time and effort**.
+- Use Azure Synapse Analytics or Azure Databricks if you want to **keep all data-related** (data engineering and data science) **projects within the same service**.
+- Use Azure Synapse Analytics or Azure Databricks if you need **distributed compute** for working with large datasets (datasets are large when you experience capacity constraints with standard compute). You'll need to work with [PySpark](https://spark.apache.org/docs/latest/api/python) to use the distributed compute.
+- Use Azure Machine Learning or Azure Databricks when you want **full control** over model training and management.
+- Use Azure Machine Learning when **Python** is your preferred programming language.
+- Use Azure Machine Learning when you want an **intuitive user interface** to manage your machine learning lifecycle.
+
+
+
+## Decide between compute options
+
+CPU vs GPU vs Spark
+
+If you need **real-time predictions**, you need compute that is always available and able to return the results (almost) immediately. **Container** technologies like *Azure Container Instance* (ACI) and *Azure Kubernetes Service* (AKS) are ideal for such scenarios as they provide a lightweight infrastructure for your deployed model.
+
+Alternatively, if you need **batch predictions**, you need compute that can handle a large workload. Ideally, you'd use a **compute cluster** that can score the data in *parallel* batches by using multiple nodes.
+
+
+
+
+
+# Design a model deployment solution
+
+To integrate the model, you need to deploy a model to an **endpoint**. Two options
+
+- Get **real-time** predictions
+  - If you want the model to score any new data as it comes in, you need predictions in real-time.
+  - Real-time predictions are often needed when a model is used by an application such as a mobile app or a website.
+- Get **batch** predictions
+  - If you want the model to score new data in batches, and save the results as a file or in a database, you need batch predictions.
+  - Imagine you're visualizing all historical sales data in a report
+
+Whether you want real-time or batch predictions *doesn't necessarily depend on how often new data is collected*. Instead, it depends on how often and how quickly you need the predictions to be generated.
+
 
 
 If you need **real-time predictions**, you need compute that is always available and able to return the results (almost) immediately. **Container** technologies like *Azure Container Instance* (ACI) and *Azure Kubernetes Service* (AKS) are ideal for such scenarios as they provide a lightweight infrastructure for your deployed model.
 
 Alternatively, if you need **batch predictions**, you need compute that can handle a large workload. Ideally, you'd use a **compute cluster** that can score the data in *parallel* batches by using multiple nodes.
+
+
+
+# Design a ML operations solution
+
+Implementing MLOps helps you to make your machine learning workloads robust and reproducible.
+
+- Convert the model training to a **robust** and **reproducible** pipeline.
+- Test the code and the model in a **development** environment.
+- Deploy the model in a **production** environment.
+- **Automate** the end-to-end process.
+
+
+
+## +Set up environments for development and production
+
+**Environment** refers to a collection of resources. These resources are used to deploy an application, or with machine learning projects, to deploy a model.
+
+A typical approach is to:
+
+- Experiment with model training in the *development* environment.
+- Move the best model to the *staging* or *pre-prod* environment to deploy and test the model.
+- Finally release the model to the *production* environment to deploy the model so that end-users can consume it.
+
+
+
+## +Design an MLOps architecture
+
+- Store all data in an Azure Blob storage, managed by the data engineer.
+- The infrastructure team creates all necessary Azure resources, like the Azure Machine Learning workspace.
+- Data scientists focus on what they do best: developing and training the model (inner loop).
+- Machine learning engineers deploy the trained models (outer loop).
+
+
+
+1. **Setup**: Create all necessary Azure resources for the solution.
+2. **Model development (inner loop)**: Explore and process the data to train and evaluate the model.
+3. **Continuous integration**: Package and register the model.
+4. **Model deployment (outer loop)**: Deploy the model.
+5. **Continuous deployment**: Test the model and promote to production environment.
+6. **Monitoring**: Monitor model and endpoint performance.
+
+
+
+## +Design for retraining
+
+Ideally, you should train models with **scripts** instead of notebooks. Scripts are better suited for automation. You can add **parameters** to a script
+
+
+
+# Configure Azure ML workspace
+
+To create an Azure Machine Learning service, you'll have to:
+
+1. Get access to **Azure**, for example through the Azure portal.
+
+2. Sign in to get access to an **Azure subscription**.
+
+3. Create a **resource group** within your subscription.
+
+4. Create an **Azure Machine Learning service** to create a workspace.
+
+   When a workspace is provisioned, Azure will automatically create other Azure resources within the same resource group to support the workspace:
+
+5. **Azure Storage Account**: To store files and notebooks used in the workspace, and to store metadata of jobs and models.
+
+6. **Azure Key Vault**: To securely manage secrets such as authentication keys and credentials used by the workspace.
+
+7. **Application Insights**: To monitor predictive services in the workspace.
+
+8. **Azure Container Registry**: Created when needed to store images for Azure Machine Learning environments.
+
+![Diagram of hierarchy of Azure resources needed for the Azure Machine Learning workspace.](https://learn.microsoft.com/en-us/training/wwl-azure/explore-azure-machine-learning-workspace-resources-assets/media/overview-azure-resources.png)
