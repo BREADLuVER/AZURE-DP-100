@@ -193,14 +193,149 @@ To create an Azure Machine Learning service, you'll have to:
 
 4. Create an **Azure Machine Learning service** to create a workspace.
 
+   - Use the user interface in the **Azure portal** to create an Azure Machine Learning service.
+   - Create an **Azure Resource Manager** (**ARM**) template. [Learn how to use an ARM template to create a workspace](https://learn.microsoft.com/en-us/azure/machine-learning/how-to-create-workspace-template?tabs=azcli%3Fazure-portal%3Dtrue).
+   - Use the **Azure Command Line Interface** (**CLI**) with the Azure Machine Learning CLI extension. [Learn how to create the workspace with the CLI v2](https://learn.microsoft.com/en-us/training/modules/create-azure-machine-learning-resources-cli-v2/).
+   - Use the **Azure Machine Learning Python SDK**.
+
    When a workspace is provisioned, Azure will automatically create other Azure resources within the same resource group to support the workspace:
 
-5. **Azure Storage Account**: To store files and notebooks used in the workspace, and to store metadata of jobs and models.
+   - **Azure Storage Account**: To store files and notebooks used in the workspace, and to store metadata of jobs and models.
 
-6. **Azure Key Vault**: To securely manage secrets such as authentication keys and credentials used by the workspace.
+   - **Azure Key Vault**: To securely manage secrets such as authentication keys and credentials used by the workspace.
 
-7. **Application Insights**: To monitor predictive services in the workspace.
+   - **Application Insights**: To monitor predictive services in the workspace.
 
-8. **Azure Container Registry**: Created when needed to store images for Azure Machine Learning environments.
+   - **Azure Container Registry**: Created when needed to store images for Azure Machine Learning environments.
 
 ![Diagram of hierarchy of Azure resources needed for the Azure Machine Learning workspace.](https://learn.microsoft.com/en-us/training/wwl-azure/explore-azure-machine-learning-workspace-resources-assets/media/overview-azure-resources.png)
+
+## +**Role-based access control** (**RBAC**)
+
+which you can configure in the **Access control** tab
+
+- **Owner**: Gets full access to all resources, and can grant access to others using access control.
+- **Contributor**: Gets full access to all resources, but can't grant access to others.
+- **Reader**: Can only view the resource, but isn't allowed to make any changes.
+
+Additionally, Azure Machine Learning has specific built-in roles you can use:
+
+- **AzureML Data Scientist**: Can perform all actions within the workspace, except for creating or deleting compute resources, or editing the workspace settings.
+- **AzureML Compute Operator**: Is allowed to create, change, and manage access the compute resources within a workspace.
+
+
+
+# Identify Azure Machine Learning resources
+
+The resources in Azure Machine Learning include:
+
+- *The workspace*
+  - The **workspace** is the top-level resource for Azure Machine Learning. Data scientists need access to the workspace to train and track models, and to deploy the models to endpoints.
+- *Compute resources*
+- *Datastores*
+
+
+
+## +Create and manage compute resources
+
+- **Compute instances**: Similar to a virtual machine in the cloud, managed by the workspace. Ideal to use as a development environment to run (Jupyter) notebooks.
+- **Compute clusters**: On-demand clusters of CPU or GPU compute nodes in the cloud, managed by the workspace. Ideal to use for production workloads as they automatically scale to your needs.
+- **Kubernetes clusters**: Allows you to create or attach an Azure Kubernetes Service (AKS) cluster. Ideal to deploy trained machine learning models in production scenarios.
+- **Attached computes**: Allows you to attach other Azure compute resources to the workspace, like Azure Databricks or Synapse Spark pools.
+- **Serverless compute**: A fully managed, on-demand compute you can use for training jobs.
+
+
+
+## +Create and manage datastores
+
+- `workspaceartifactstore`: Connects to the `azureml` container of the Azure Storage account created with the workspace. Used to store compute and experiment logs when running jobs.
+- `workspaceworkingdirectory`: Connects to the file share of the Azure Storage account created with the workspace used by the **Notebooks** section of the studio. Whenever you upload files or folders to access from a compute instance, it's uploaded to this file share.
+- `workspaceblobstore`: Connects to the Blob Storage of the Azure Storage account created with the workspace. Specifically the `azureml-blobstore-...` container. Set as the default datastore, which means that whenever you create a data asset and upload data, it's stored in this container.
+- `workspacefilestore`: Connects to the file share of the Azure Storage account created with the workspace. Specifically the `azureml-filestore-...` file share.
+
+
+
+## + Identify Azure Machine Learning assets
+
+Assets are created and used at various stages of a project and include:
+
+- Models
+  - pickle file (`.pkl` extension) for storage
+  - when create a **model** in the workspace, specify the *name* and *version*
+- Environments
+  - Environments specify software packages, environment variables, and software settings to run scripts
+- Data
+  - You can use data assets to easily access data every time, without having to provide authentication 
+  - Path, name, and version
+- Components
+  - Reuse code basically
+  - you have to specify the *name*, *version*, code, and *environment*
+  - You can use components when creating **pipelines**. A component therefore often represents a step in a pipeline
+
+
+
+## +Train models in the **workspace**
+
+To train models with the Azure Machine Learning workspace, you have several options:
+
+- Use **Automated Machine Learning**.
+  - Automated Machine Learning iterates through algorithms paired with feature selections to find the best performing model for your data
+- Run a Jupyter notebook.
+  - The **Notebooks** page in the studio allows you to edit and run Jupyter notebooks.
+- Run a script as a job..
+  - You can run a script as a **job** in Azure Machine Learning. When you submit a job to the workspace, all inputs and outputs will be stored in the workspace.
+
+There are different types of jobs depending on how you want to execute a workload:
+
+1. **Command**: Execute a single script.
+2. **Sweep**: Perform hyperparameter tuning when executing a single script.
+3. **Pipeline**: Run a pipeline consisting of multiple scripts or components.
+
+
+
+# Explore developer tools for workspace interaction
+
+After the Python SDK is installed, you'll need to connect to the workspace
+
+To authenticate, you need the values to three necessary parameters:
+
+- `subscription_id`: Your subscription ID.
+- `resource_group`: The name of your resource group.
+- `workspace_name`: The name of your workspace.
+
+Next, you can define the authentication by using the following code:
+
+![image-20240629135020498](C:\Users\bread\AppData\Roaming\Typora\typora-user-images\image-20240629135020498.png)
+
+After defining the authentication, you need to call `MLClient` for the environment to connect to the workspace. You'll call `MLClient` anytime you want to create or update an asset or resource in the workspace.
+
+```
+returned_job = ml_client.create_or_update(job)
+```
+
+
+
+## +Explore the CLI (command-line interface)
+
+The Azure CLI is commonly used by administrators and engineers to automate tasks in Azure.
+
+The Azure CLI allows you to:
+
+- Automate the creation and configuration of assets and resources to make it **repeatable**.
+- Ensure **consistency** for assets and resources that must be replicated in multiple environments (for example, development, test, and production).
+- Incorporate machine learning asset configuration into developer operations (**DevOps**) **workflows**, such as **continuous integration** and **continuous deployment** (**CI/CD**) pipelines.
+
+
+
+## +Install the Azure Machine Learning extension
+
+Use Azure Machine Learning extension to manage Azure Machine Learning resources using the Azure CLI.
+
+You can install the Azure Machine Learning extension `ml` with the following command:
+
+```
+az extension add -n ml -y
+
+az ml -h
+```
+
