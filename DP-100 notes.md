@@ -715,3 +715,156 @@ Common functions used with custom logging are:
 
 
 # Run a training script as a command job
+
+Scripts are ideal for **testing and automation** in your production environment. To create a production-ready script, you'll need to:
+
+- Remove nonessential code.
+  - you want to avoid executing anything nonessential to reduce cost and compute time.
+- Refactor your code into functions.
+  - you want the code to be easy to read so that anyone can maintain it
+- Test your script in the terminal.
+
+
+
+## +Run a script as a command job
+
+To run a script as a command job, you'll need to configure and submit the job.
+
+To configure a command job with the Python SDK (v2), you'll use the `command` function. To run a script, you'll need to specify values for the following parameters:
+
+- `code`: The folder that includes the script to run.
+- `command`: Specifies which file to run.
+- `environment`: The necessary packages to be installed on the compute before running the command.
+- `compute`: The compute to use to run the command.
+- `display_name`: The name of the individual job.
+- `experiment_name`: The name of the experiment the job belongs to.
+
+```
+from azure.ai.ml import command
+
+# configure job
+job = command(
+    code="./src",
+    command="python train.py",
+    environment="AzureML-sklearn-0.24-ubuntu18.04-py37-cpu@latest",
+    compute="aml-cluster",
+    display_name="train-model",
+    experiment_name="train-classification-model"
+    )
+    
+# submit job
+returned_job = ml_client.create_or_update(job)
+```
+
+
+
+To use parameters in a script, you must use a library such as `argparse` to read arguments passed to the script and assign them to variables.
+
+```
+def parse_args():
+    # setup arg parser
+    parser = argparse.ArgumentParser()
+
+    # add arguments
+    parser.add_argument("--training_data", dest='training_data',
+                        type=str)
+
+    # parse args
+    args = parser.parse_args()
+
+    # return args
+    return args
+    
+# command to pass parameter to script    
+python train.py --training_data diabetes.csv
+```
+
+
+
+# Perform hyperparameter tuning with Azure Machine Learning
+
+Data scientists refer to the values determined from the training features as *parameters*, so a different term is required for values that are used to configure training behavior but which are ***not*** derived from the training data - hence the term *hyperparameter*.
+
+**Hyperparameter tuning** is accomplished by training the multiple models, using the same algorithm and training data but different hyperparameter values. 
+
+In Azure Machine Learning, you can tune hyperparameters by submitting a script as a **sweep job**. A sweep job will run a **trial** for each hyperparameter combination to be tested.
+
+
+
+## +Search space
+
+The set of hyperparameter values tried during hyperparameter tuning is known as the **search space**. 
+
+
+
+### Discrete hyperparameters
+
+Some hyperparameters require *discrete* values - in other words, you must select the value from a particular *finite* set of possibilities. You can define a search space for a discrete parameter using a **Choice** from a list of explicit values, which you can define as a Python **list** (`Choice(values=[10,20,30])`), a **range** (`Choice(values=range(1,10))`), or an arbitrary set of comma-separated values (`Choice(values=(30,50,100))`)
+
+You can also select discrete values from any of the following discrete distributions:
+
+- `QUniform(min_value, max_value, q)`: Returns a value like round(Uniform(min_value, max_value) / q) * q
+- `QLogUniform(min_value, max_value, q)`: Returns a value like round(exp(Uniform(min_value, max_value)) / q) * q
+- `QNormal(mu, sigma, q)`: Returns a value like round(Normal(mu, sigma) / q) * q
+- `QLogNormal(mu, sigma, q)`: Returns a value like round(exp(Normal(mu, sigma)) / q) * q
+
+### Continuous hyperparameters
+
+Some hyperparameters are *continuous* - in other words you can use any value along a scale, resulting in an *infinite* number of possibilities. To define a search space for these kinds of value, you can use any of the following distribution types:
+
+- `Uniform(min_value, max_value)`: Returns a value uniformly distributed between min_value and max_value
+- `LogUniform(min_value, max_value)`: Returns a value drawn according to exp(Uniform(min_value, max_value)) so that the logarithm of the return value is uniformly distributed
+- `Normal(mu, sigma)`: Returns a real value that's normally distributed with mean mu and standard deviation sigma
+- `LogNormal(mu, sigma)`: Returns a value drawn according to exp(Normal(mu, sigma)) so that the logarithm of the return value is normally distributed
+
+
+
+To define a search space for hyperparameter tuning, create a dictionary with the appropriate parameter expression for each named hyperparameter.
+
+For example, the following search space indicates that the `batch_size` hyperparameter can have the value 16, 32, or 64, and the `learning_rate` hyperparameter can have any value from a normal distribution with a mean of 10 and a standard deviation of 3.
+
+```
+from azure.ai.ml.sweep import Choice, Normal
+
+command_job_for_sweep = job(
+    batch_size=Choice(values=[16, 32, 64]),    
+    learning_rate=Normal(mu=10, sigma=3),
+)
+
+sweep_job = command_job_for_sweep.sweep(
+    sampling_algorithm = "random",
+    ...
+)
+```
+
+
+
+## +Configure a sampling method
+
+There are three main sampling methods available in Azure Machine Learning:
+
+- **Grid sampling**: Tries every possible combination.
+
+- Random sampling
+
+  : Randomly chooses values from the search space.
+
+  - **Sobol**: Adds a seed to random sampling to make the results reproducible.
+
+- **Bayesian sampling**: Chooses new values based on previous results.
+
+
+
+## +Configure an early termination policy
+
+There are two main parameters when you choose to use an early termination policy:
+
+- `evaluation_interval`: Specifies at which interval you want the policy to be evaluated. Every time the primary metric is logged for a trial counts as an interval.
+- `delay_evaluation`: Specifies when to start evaluating the policy. This parameter allows for at least a minimum of trials to complete without an early termination policy affecting them.
+
+New models may continue to perform only slightly better than previous models. To determine the extent to which a model should perform better than previous trials, there are three options for early termination:
+
+- **Bandit policy**: Uses a `slack_factor` (relative) or `slack_amount`(absolute). Any new model must perform within the slack range of the best performing model.
+- **Median stopping policy**: Uses the median of the averages of the primary metric. Any new model must perform better than the median.
+- **Truncation selection policy**: Uses a `truncation_percentage`, which is the percentage of lowest performing trials. Any new model must perform better than the lowest performing trials.
+  - In other words, if the fifth trial is **not** the worst performing model so far, the sweep job will continue. If the fifth trial has the lowest accuracy score of all trials so far, the sweep job will stop.
