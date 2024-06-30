@@ -463,7 +463,11 @@ transformations:
 ## Types of compute
 
 - **Compute instance**: Behaves similarly to a virtual machine and is primarily used to run notebooks. It's ideal for *experimentation*.
+  - To use a compute instance, you need an application that can host notebooks. The easiest option to work with the compute instance is through the integrated notebooks experience in the Azure Machine Learning studio.
 - **Compute clusters**: Multi-node clusters of virtual machines that automatically scale up or down to meet demand. A cost-effective way to run scripts that need to process large volumes of data. Clusters also allow you to use parallel processing to distribute the workload and reduce the time it takes to run a script.
+  - Running a pipeline job you built in the Designer.
+  - Running an Automated Machine Learning job.
+  - Running a script as a job.
 - **Kubernetes clusters**: Cluster based on Kubernetes technology, giving you more control over how the compute is configured and managed. You can attach your self-managed Azure Kubernetes (AKS) cluster for cloud compute, or an Arc Kubernetes cluster for on-premises workloads.
 - **Attached compute**: Allows you to attach existing compute like Azure virtual machines or Azure Databricks clusters to your workspace.
 - **Serverless compute**: A fully managed, on-demand compute you can use for training jobs.
@@ -485,3 +489,42 @@ For batch predictions, you can run a pipeline job in Azure Machine Learning. Com
 ### Real-time predictions
 
 When you want real-time predictions, you need a type of compute that is running continuously. Containers are ideal for real-time deployments. Alternatively, you can attach Kubernetes clusters to manage the necessary compute to generate real-time predictions.
+
+
+
+## +Create and use a compute
+
+Compute instance:
+
+```
+from azure.ai.ml.entities import ComputeInstance
+
+ci_basic_name = "basic-ci-12345"
+ci_basic = ComputeInstance(
+    name=ci_basic_name, 
+    size="STANDARD_DS3_v2"
+)
+ml_client.begin_create_or_update(ci_basic).result()
+```
+
+Compute cluster:
+
+```
+from azure.ai.ml.entities import AmlCompute
+
+cluster_basic = AmlCompute(
+    name="cpu-cluster",
+    type="amlcompute",
+    size="STANDARD_DS3_v2",
+    location="westus",
+    min_instances=0,
+    max_instances=2,
+    idle_time_before_scale_down=120,
+    tier="low_priority",
+)
+ml_client.begin_create_or_update(cluster_basic).result()
+```
+
+- `size`: Specifies the *virtual machine type* of each node within the compute cluster. Based on the [sizes for virtual machines in Azure](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes). Next to size, you can also specify whether you want to use CPUs or GPUs.
+- `max_instances`: Specifies the *maximum number of nodes* your compute cluster can scale out to. The number of parallel workloads your compute cluster can handle is analogous to the number of nodes your cluster can scale to.
+- `tier`: Specifies whether your virtual machines are *low priority* or *dedicated*. Setting to low priority can lower costs as you're not guaranteed availability.
