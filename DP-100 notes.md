@@ -391,3 +391,97 @@ To simplify getting access to the data you want to work with, you can use **data
 - You can **share and reuse data** with other members of the team such that they don't need to remember file locations.
 - You can **seamlessly access data** during model training (on any supported compute type) without worrying about connection strings or data paths.
 - You can **version** the metadata of the data asset.
+
+There are three main types of data assets you can use:
+
+1. **URI file**: Points to a specific file.
+2. **URI folder**: Points to a folder.
+3. **MLTable**: Points to a folder or file, and includes a schema to read as tabular data.
+
+
+
+### Create a URI file data asset
+
+- Local: `./<path>`
+- Azure Blob Storage: `wasbs://<account_name>.blob.core.windows.net/<container_name>/<folder>/<file>`
+- Azure Data Lake Storage (Gen 2): `abfss://<file_system>@<account_name>.dfs.core.windows.net/<folder>/<file>`
+- Datastore: `azureml://datastores/<datastore_name>/paths/<folder>/<file>`
+
+```
+from azure.ai.ml.entities import Data
+from azure.ai.ml.constants import AssetTypes
+
+my_path = '<supported-path>'
+
+my_data = Data(
+    path=my_path,
+    type=AssetTypes.URI_FILE,
+    description="<description>",
+    name="<name>",
+    version="<version>"
+)
+
+ml_client.data.create_or_update(my_data)
+
+#READ INPUT DATA
+parser = argparse.ArgumentParser()
+parser.add_argument("--input_data", type=str)
+args = parser.parse_args()
+
+df = pd.read_csv(args.input_data)
+print(df.head(10))
+```
+
+
+
+### Create a MLTable data asset
+
+For certain features in Azure Machine Learning, like *Automated Machine Learning*, you need to use a MLTable data asset, as Azure Machine Learning needs to know how to read the data.
+
+To define the schema, you can include a **MLTable file** in the same folder as the data you want to read. The MLTable file includes the path pointing to the data you want to read, and how to read the data:
+
+```yml
+type: mltable
+
+paths:
+  - pattern: ./*.txt
+transformations:
+  - read_delimited:
+      delimiter: ','
+      encoding: ascii
+      header: all_files_same_headers
+```
+
+
+
+
+
+# Work with compute targets in Azure Machine Learning
+
+
+
+## Types of compute
+
+- **Compute instance**: Behaves similarly to a virtual machine and is primarily used to run notebooks. It's ideal for *experimentation*.
+- **Compute clusters**: Multi-node clusters of virtual machines that automatically scale up or down to meet demand. A cost-effective way to run scripts that need to process large volumes of data. Clusters also allow you to use parallel processing to distribute the workload and reduce the time it takes to run a script.
+- **Kubernetes clusters**: Cluster based on Kubernetes technology, giving you more control over how the compute is configured and managed. You can attach your self-managed Azure Kubernetes (AKS) cluster for cloud compute, or an Arc Kubernetes cluster for on-premises workloads.
+- **Attached compute**: Allows you to attach existing compute like Azure virtual machines or Azure Databricks clusters to your workspace.
+- **Serverless compute**: A fully managed, on-demand compute you can use for training jobs.
+
+
+
+### Experimentation
+
+Many data scientists are familiar with running notebooks on their local device. A cloud alternative managed by Azure Machine Learning is a *compute instance*. Alternatively, you can also opt for *Spark serverless compute* to run Spark code in notebooks, if you want to make use of Spark's distributed compute power.
+
+### Production
+
+When training models with scripts, you want an on-demand compute target. A *compute cluster* automatically scales up when the script(s) need to be executed, and scales down when the script finishes executing
+
+### **Batch predictions**
+
+For batch predictions, you can run a pipeline job in Azure Machine Learning. Compute targets like compute clusters and Azure Machine Learning's serverless compute are ideal for pipeline jobs as they're on-demand and scalable.
+
+### Real-time predictions
+
+When you want real-time predictions, you need a type of compute that is running continuously. Containers are ideal for real-time deployments. Alternatively, you can attach Kubernetes clusters to manage the necessary compute to generate real-time predictions.
