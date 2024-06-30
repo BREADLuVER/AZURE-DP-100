@@ -460,7 +460,7 @@ transformations:
 
 
 
-## Types of compute
+## +Types of compute
 
 - **Compute instance**: Behaves similarly to a virtual machine and is primarily used to run notebooks. It's ideal for *experimentation*.
   - To use a compute instance, you need an application that can host notebooks. The easiest option to work with the compute instance is through the integrated notebooks experience in the Azure Machine Learning studio.
@@ -528,3 +528,190 @@ ml_client.begin_create_or_update(cluster_basic).result()
 - `size`: Specifies the *virtual machine type* of each node within the compute cluster. Based on the [sizes for virtual machines in Azure](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes). Next to size, you can also specify whether you want to use CPUs or GPUs.
 - `max_instances`: Specifies the *maximum number of nodes* your compute cluster can scale out to. The number of parallel workloads your compute cluster can handle is analogous to the number of nodes your cluster can scale to.
 - `tier`: Specifies whether your virtual machines are *low priority* or *dedicated*. Setting to low priority can lower costs as you're not guaranteed availability.
+
+
+
+# Work with environments in Azure ML
+
+**Environments** list and store the necessary packages that you can reuse across compute targets.
+
+Azure Machine Learning builds the environment on the **Azure Container registry** associated with the workspace. When you create an Azure Machine Learning workspace, **curated** environments are automatically created and made available to you.
+
+For example, to list the environments using the Python SDK:
+
+```
+envs = ml_client.environments.list()
+for env in envs:
+    print(env.name)
+```
+
+To review the details of a specific environment, you can retrieve an environment by its registered name:
+
+```
+env = ml_client.environments.get(name="my-environment", version="1")
+print(env)
+```
+
+Curated environments use the prefix **AzureML-**
+
+
+
+## +Explore and use curated environments
+
+Most commonly, you use environments when you want to run a script as a (**command**) **job**.
+
+```
+from azure.ai.ml import command
+
+# configure job
+job = command(
+    code="./src",
+    command="python train.py",
+    environment="AzureML-sklearn-0.24-ubuntu18.04-py37-cpu@latest",
+    compute="aml-cluster",
+    display_name="train-with-curated-environment",
+    experiment_name="train-with-curated-environment"
+)
+
+# submit job
+returned_job = ml_client.create_or_update(job)
+```
+
+
+
+
+
+# Auto ML
+
+Before you can run an automated machine learning, you need to create a **data asset** in Azure Machine Learning. In order for AutoML to understand how to read the data, you need to create a **MLTable** data asset that includes the schema of the data.
+
+```
+from azure.ai.ml.constants import AssetTypes
+from azure.ai.ml import Input
+
+my_training_data_input = Input(type=AssetTypes.MLTABLE, path="azureml:input-data-automl:1")
+```
+
+You can choose to have AutoML apply *preprocessing transformations*, such as:
+
+- Missing value imputation to eliminate nulls in the training dataset.
+- Categorical encoding to convert categorical features to numeric indicators.
+- Dropping high-cardinality features, such as record IDs.
+- Feature engineering (for example, deriving individual date parts from DateTime features)
+
+By default, AutoML will perform featurization on your data. You can disable it if you don't want the data to be transformed.
+
+If you do want to make use of the integrated featurization function, you can customize it. For example, you can specify which imputation method should be used for a specific feature.
+
+
+
+## +Run a Automated ML experiment
+
+AutoML will choose from a list of classification algorithms:
+
+- Logistic Regression
+- Light Gradient Boosting Machine (GBM)
+- Decision Tree
+- Random Forest
+- Naive Bayes
+- Linear Support Vector Machine (SVM)
+- XGBoost
+- And others...
+
+You can choose to block individual algorithms from being selected; 
+
+```
+classification_job = automl.classification(
+    compute="aml-cluster",
+    experiment_name="auto-ml-class-dev",
+    training_data=my_training_data_input,
+    target_column_name="Diabetic",
+    primary_metric="accuracy",
+    n_cross_validations=5,
+    enable_model_explainability=True
+)
+```
+
+
+
+One of the most important settings you must specify is the **primary_metric**. The primary metric is the target performance metric for which the optimal model will be determined. Azure Machine Learning supports a set of named metrics for each type of task.
+
+```
+from azure.ai.ml.automl import ClassificationPrimaryMetrics
+ 
+list(ClassificationPrimaryMetrics)
+```
+
+
+
+There are several options to set limits to an AutoML experiment:
+
+- `timeout_minutes`: Number of minutes after which the complete AutoML experiment is terminated.
+- `trial_timeout_minutes`: Maximum number of minutes one trial can take.
+- `max_trials`: Maximum number of trials, or models that will be trained.
+- `enable_early_termination`: Whether to end the experiment if the score isn't improving in the short term.
+
+
+
+You can submit an AutoML job with the following code:
+
+```
+returned_job = ml_client.jobs.create_or_update(
+    classification_job
+) 
+
+#You can monitor AutoML job with studio_url
+aml_url = returned_job.studio_url
+print("Monitor your job at", aml_url)
+```
+
+
+
+# MLflow for notebooks
+
+## +Logging
+
+**MLflow** is an open-source library for tracking and managing your machine learning experiments. In particular, **MLflow Tracking** is a component of MLflow that logs everything about the model you're training, such as **parameters**, **metrics**, and **artifacts**.
+
+```
+pip show mlflow
+pip show azureml-mlflow
+
+
+mlflow.set_experiment(experiment_name="heart-condition-classifier")
+
+with mlflow.start_run():
+    mlflow.xgboost.autolog()
+
+    model = XGBClassifier(use_label_encoder=False, eval_metric="logloss")
+    model.fit(X_train, y_train, eval_set=[(X_test, y_test)], verbose=False)
+```
+
+
+
+### Autologging
+
+MLflow supports automatic logging for popular machine learning libraries. If you're using a library that is supported by autolog, then MLflow tells the framework you're using to log all the metrics, parameters, artifacts, and models that the framework considers relevant.
+
+You can turn on autologging by using the `autolog` method for the framework you're using. For example, to enable autologging for XGBoost models you can use `mlflow.xgboost.autolog()`.
+
+
+
+When the job has completed, you can review all logged metrics in the studio.
+
+![Screenshot of overview page of MLflow experiment with autologging in Azure Machine Learning studio.](https://learn.microsoft.com/en-us/training/wwl-azure/track-model-training-jupyter-notebooks-mlflow/media/autolog-results.png)
+
+### Custom logging
+
+Manually logging models is helpful when you want to log supplementary or custom information that isn't logged through autologging.
+
+Common functions used with custom logging are:
+
+- `mlflow.log_param()`: Logs a single key-value parameter. Use this function for an input parameter you want to log.
+- `mlflow.log_metric()`: Logs a single key-value metric. Value must be a number. Use this function for any output you want to store with the run.
+- `mlflow.log_artifact()`: Logs a file. Use this function for any plot you want to log, save as image file first.
+- `mlflow.log_model()`: Logs a model. Use this function to create an MLflow model, which may include a custom signature, environment, and input examples.
+
+
+
+# Run a training script as a command job
