@@ -339,3 +339,55 @@ az extension add -n ml -y
 az ml -h
 ```
 
+
+
+# Make data available in Azure Machine Learning
+
+## +Understand URIs
+
+- `http(s)`: Use for data stores publicly or privately in an Azure Blob Storage or publicly available http(s) location.
+- `abfs(s)`: Use for data stores in an Azure Data Lake Storage Gen 2.
+- `azureml`: Use for data stored in a datastore.
+
+
+
+## +Create a datastore
+
+In Azure Machine Learning, **datastores** are abstractions for cloud data sources. They encapsulate the information needed to connect to data sources, and securely store this connection information so that you don’t have to code it in your scripts. (Datastores allow you to **easily connect** to storage services)
+
+Azure Machine Learning supports the creation of datastores for multiple kinds of Azure data source, including:
+
+- Azure Blob Storage
+- Azure File Share
+- Azure Data Lake (Gen 2)
+
+Every workspace has **four** built-in datastores (two connecting to Azure Storage blob containers, and two connecting to Azure Storage file shares), which are used as system storages by Azure Machine Learning.
+
+In most machine learning projects, you need to work with data sources of your own.
+
+You can create a datastore through the **graphical user interface**, the Azure command-line interface (**CLI**), or the Python software development kit (**SDK**).
+
+```
+blob_datastore = AzureBlobDatastore(
+    			name = "blob_example",
+    			description = "Datastore pointing to a blob container",
+    			account_name = "mytestblobstore",
+    			container_name = "data-container",
+    			credentials = AccountKeyConfiguration(
+        			account_key="XXXxxxXXXxXXXXxxXXX"
+    			),
+)
+ml_client.create_or_update(blob_datastore)
+```
+
+
+
+## +Create a data asset
+
+To simplify getting access to the data you want to work with, you can use **data assets**.
+
+*data assets are references to where the data is stored, how to get access, and any other relevant metadata*
+
+- You can **share and reuse data** with other members of the team such that they don't need to remember file locations.
+- You can **seamlessly access data** during model training (on any supported compute type) without worrying about connection strings or data paths.
+- You can **version** the metadata of the data asset.
