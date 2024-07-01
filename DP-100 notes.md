@@ -868,3 +868,54 @@ New models may continue to perform only slightly better than previous models. To
 - **Median stopping policy**: Uses the median of the averages of the primary metric. Any new model must perform better than the median.
 - **Truncation selection policy**: Uses a `truncation_percentage`, which is the percentage of lowest performing trials. Any new model must perform better than the lowest performing trials.
   - In other words, if the fifth trial is **not** the worst performing model so far, the sweep job will continue. If the fifth trial has the lowest accuracy score of all trials so far, the sweep job will stop.
+
+
+
+# Component
+
+**Components** allow you to create reusable scripts that can easily be shared across users within the same Azure Machine Learning workspace.
+
+A component consists of three parts:
+
+- **Metadata**: Includes the component's name, version, etc.
+- **Interface**: Includes the expected input parameters (like a dataset or hyperparameter) and expected output (like metrics and artifacts).
+- **Command, code and environment**: Specifies how to run the code.
+
+
+
+# Create a pipeline
+
+In Azure Machine Learning, a **pipeline** is a workflow of machine learning tasks in which each task is defined as a **component**.
+
+A pipeline can be executed as a process by running the pipeline as a **pipeline job**. Each component is executed as a **child job** as part of the overall pipeline job.
+
+![Diagram of pipeline structure including all inputs and outputs.](https://learn.microsoft.com/en-us/training/wwl-azure/run-pipelines-azure-machine-learning/media/pipeline-overview.png)
+
+To schedule a pipeline job, you'll use the `JobSchedule` class to associate a schedule to a pipeline job.
+
+There are various ways to create a schedule. A simple approach is to create a time-based schedule using the `RecurrenceTrigger` class with the following parameters:
+
+- `frequency`: Unit of time to describe how often the schedule fires. Value can be either `minute`, `hour`, `day`, `week`, or `month`.
+- `interval`: Number of frequency units to describe how often the schedule fires. Value needs to be an integer.
+
+To schedule a pipeline, you'll need `pipeline_job` to represent the pipeline you've built:
+
+```
+from azure.ai.ml.entities import RecurrenceTrigger
+
+schedule_name = "run_every_minute"
+
+recurrence_trigger = RecurrenceTrigger(
+    frequency="minute",
+    interval=1,
+)
+
+job_schedule = JobSchedule(
+    name=schedule_name, trigger=recurrence_trigger, create_job=pipeline_job
+)
+
+job_schedule = ml_client.schedules.begin_create_or_update(
+    schedule=job_schedule
+).result()
+```
+
