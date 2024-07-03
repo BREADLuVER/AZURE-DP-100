@@ -919,3 +919,332 @@ job_schedule = ml_client.schedules.begin_create_or_update(
 ).result()
 ```
 
+
+
+
+
+# Log models with MLflow
+
+MLflow standardizes the packaging of models, which means that an MLflow model can easily be imported or exported across different workflows.
+
+If you want to **export** the model to another workspace used for production, you can use an MLflow model to easily do so.
+
+When you register the model, an `MLmodel` file is created in that directory. The `MLmodel` file contains the model's metadata, which allows for model traceability. (this is included in the output folder created in autologging)
+
+
+
+The model is logged when the `.fit()` method is called. 
+
+- Keras: `mlflow.keras.autolog`
+- Scikit-learn: `mlflow.sklearn.autolog()`
+- LightGBM: `mlflow.lightgbm.autolog`
+- XGBoost: `mlflow.xgboost.autolog`
+- TensorFlow: `mlflow.tensorflow.autolog`
+- PyTorch: `mlflow.pytorch.autolog`
+- ONNX: `mlflow.onnx.autolog`
+
+When you want to have more control over how the model is logged, you can use `autolog` (for your parameters, metrics, and other artifacts), and set `log_models=False`.
+
+
+
+## +Explore the MLmodel file format
+
+The `MLmodel` file may include:
+
+- `artifact_path`: During the training job, the model is logged to this path.
+- `flavor`: The machine learning library with which the model was created.
+- `model_uuid`: The unique identifier of the registered model.
+- `run_id`: The unique identifier of job run during which the model was created.
+- Signature: Specifies the schema of the model's inputs and outputs:
+  - `inputs`: Valid input to the model. For example, a subset of the training dataset.
+  - `outputs`: Valid model output. For example, model predictions for the input dataset.
+    - **Column-based**: used for tabular data with a `pandas.Dataframe` as inputs.
+    - **Tensor-based**: used for n-dimensional arrays or tensors (often used for unstructured data like text or images), with `numpy.ndarray` as inputs.
+
+
+
+## +MLflow models
+
+There are three types of models you can register:
+
+- **MLflow**: Model trained and tracked with MLflow. Recommended for standard use cases.
+- **Custom**: Model type with a custom standard not currently supported by Azure Machine Learning.
+- **Triton**: Model type for deep learning workloads. Commonly used for TensorFlow and PyTorch model deployments.
+
+
+
+To train model, you can submit a training script as a command job 
+
+![image-20240701192853604](C:\Users\bread\AppData\Roaming\Typora\typora-user-images\image-20240701192853604.png)
+
+Once the job is completed and the model is trained, use the job name to find the job run and register the model from its outputs.
+
+![image-20240701193405719](C:\Users\bread\AppData\Roaming\Typora\typora-user-images\image-20240701193405719.png)
+
+
+
+# Create the Responsible AI dashboard
+
+To create a Responsible AI (RAI) dashboard, you need to create a **pipeline** by using the built-in components. The pipeline should:
+
+1. Start with the `RAI Insights dashboard constructor`.
+2. Include one of the **RAI tool components**.
+3. End with `Gather RAI Insights dashboard` to collect all insights into one dashboard.
+4. *Optionally* you can also add the `Gather RAI Insights score card` at the end of your pipeline.
+
+
+
+The available tool components and the insights you can use are:
+
+- `Add Explanation to RAI Insights dashboard`: Interpret models by generating explanations. Explanations show how much features influence the prediction.
+- `Add Causal to RAI Insights dashboard`: Use historical data to view the causal effects of features on outcomes.
+- `Add Counterfactuals to RAI Insights dashboard`: Explore how a change in input would change the model's output.
+- `Add Error Analysis to RAI Insights dashboard`: Explore the distribution of your data and identify erroneous subgroups of data.
+
+
+
+After you've trained and registered a model in the Azure Machine Learning workspace, you can create the Responsible AI dashboard in three ways:
+
+- Using the Command Line Interface (CLI) extension for Azure Machine Learning.
+- Using the Python Software Development Kit (SDK).
+  - Register the training and test datasets as MLtable data assets.
+  - Register the model.
+  - Retrieve the built-in components you want to use.
+  - Build the pipeline.
+  - Run the pipeline.
+- Using the Azure Machine Learning studio for a no-code experience.
+
+
+
+# Evaluate the Responsible AI dashboard
+
+The output of each component you added to the pipeline is reflected in the dashboard. Depending on the components you selected, you can find the following insights in your Responsible AI dashboard:
+
+### Error analysis
+
+When you include error analysis, there are two types of visuals you can explore in the Responsible AI dashboard:
+
+- **Error tree map**: Allows you to explore which combination of subgroups results in the model making more false predictions.
+
+  ![Screenshot of error tree of diabetes classification model.](https://learn.microsoft.com/en-us/training/wwl-azure/manage-compare-models-azure-machine-learning/media/error-tree.png)
+
+- **Error heat map**: Presents a grid overview of a model's errors over the scale of one or two features.
+
+![Screenshot of error heat map of diabetes classification model.](https://learn.microsoft.com/en-us/training/wwl-azure/manage-compare-models-azure-machine-learning/media/error-map.png)
+
+### Explanations
+
+- **Aggregate feature importance**: Shows how each feature in the test data influences the model's predictions *overall*.
+
+![Screenshot of aggregate feature importance for diabetes dataset.](https://learn.microsoft.com/en-us/training/wwl-azure/manage-compare-models-azure-machine-learning/media/aggregate-feature.png)
+
+- **Individual feature importance**: Shows how each feature impacts an *individual* prediction.
+
+![Screenshot of individual feature importance for one row in the diabetes dataset.](https://learn.microsoft.com/en-us/training/wwl-azure/manage-compare-models-azure-machine-learning/media/individual-feature.png)
+
+### Counterfactuals
+
+To explore how the model's output would change based on a change in the input, you can use **counterfactuals**.
+
+
+
+### Causal analysis
+
+**Causal analysis** uses statistical techniques to estimate the average effect of a feature on a desired prediction. It analyzes how certain interventions or treatments may result in a better outcome, across a population or for a specific individual.
+
+There are three available tabs in the Responsible AI dashboard when including causal analysis:
+
+- **Aggregate causal effects**: Shows the average causal effects for predefined treatment features (the features you want to change to optimize the model's predictions).
+- **Individual causal effects**: Shows individual data points and allows you to change the treatment features to explore their influence on the prediction.
+- **Treatment policy**: Shows which parts of your data points benefit most from a treatment. 
+
+
+
+
+
+# Explore managed online endpoints
+
+To get real-time predictions, you can deploy a model to an endpoint. An **endpoint** is an HTTPS endpoint to which you can send data, and which will return a response (almost) immediately.
+
+Any data you send to the endpoint will serve as the input for the scoring script hosted on the endpoint. The scoring script loads the trained model to *predict the label for the new input data*, which is also called **inferencing**. 
+
+
+
+Within Azure Machine Learning, there are two types of online endpoints:
+
+- **Managed online endpoints**: Azure Machine Learning manages all the underlying infrastructure.
+- **Kubernetes online endpoints**: Users manage the Kubernetes cluster which provides the necessary infrastructure.
+
+
+
+To deploy your model to a managed online endpoint, you need to specify four things:
+
+- **Model assets** like the model pickle file, or a **registered model** in the Azure Machine Learning workspace.
+- **Scoring script** that loads the model.
+- **Environment** which lists all necessary packages that need to be installed on the compute of the endpoint.
+- **Compute configuration** including the needed **compute size** and **scale settings** to ensure you can handle the amount of requests the endpoint will receive.
+
+
+
+To create an online endpoint, you'll use the `ManagedOnlineEndpoint` class, which requires the following parameters:
+
+- `name`: Name of the endpoint. Must be unique in the Azure region.
+- `auth_mode`: Use `key` for key-based authentication. Use `aml_token` for Azure Machine Learning token-based authentication.
+
+```
+from azure.ai.ml.entities import ManagedOnlineEndpoint
+
+# create an online endpoint
+endpoint = ManagedOnlineEndpoint(
+    name="endpoint-example",
+    description="Online endpoint",
+    auth_mode="key",
+)
+
+ml_client.begin_create_or_update(endpoint).result()
+```
+
+
+
+## +Endpoint Deployment
+
+One endpoint can have multiple deployments. One approach is the **blue/green deployment**.
+
+When a request is sent to the endpoint, 90% of the traffic can go to the blue deployment, and 10% of the traffic can go to the *green deployment*. With two versions of the model deployed on the same endpoint, you can easily test the model. 
+
+After testing, you can also seamlessly transition to the new version of the model by redirecting 90% of the traffic to the green deployment. If it turns out that the new version doesn't perform better, you can easily roll back to the first version of the model by redirecting most of the traffic back to the blue deployment.
+
+
+
+
+
+## +Deploy your MLflow model to a managed online endpoint
+
+To deploy an MLflow model, you must have model files stored on a local path or with a registered model. You can log model files when training a model by using MLflow tracking.
+
+Next to the model, you also need to specify the compute configuration for the deployment:
+
+- `instance_type`: Virtual machine (VM) size to use. [Review the list of supported sizes](https://learn.microsoft.com/en-us/azure/machine-learning/reference-managed-online-endpoints-vm-sku-list).
+- `instance_count`: Number of instances to use.
+
+```
+from azure.ai.ml.entities import Model, ManagedOnlineDeployment
+from azure.ai.ml.constants import AssetTypes
+
+# create a blue deployment
+model = Model(
+    path="./model",
+    type=AssetTypes.MLFLOW_MODEL,
+    description="my sample mlflow model",
+)
+
+blue_deployment = ManagedOnlineDeployment(
+    name="blue",
+    endpoint_name="endpoint-example",
+    model=model,
+    instance_type="Standard_F4s_v2",
+    instance_count=1,
+)
+
+ml_client.online_deployments.begin_create_or_update(blue_deployment).result()
+blue_deployment.traffic = {"blue": 100}
+ml_client.begin_create_or_update(blue_deployment).result()
+```
+
+
+
+## +Deploy a model to a managed online endpoint
+
+To deploy a model, you must have:
+
+- Model files stored on local path or registered model.
+- A scoring script.
+- An execution environment.
+
+The model files can be logged and stored when you train a model.
+
+
+
+The scoring script needs to include two functions:
+
+- `init()`: Called when the service is initialized.
+- `run()`: Called when new data is submitted to the service.
+
+```
+import json
+import joblib
+import numpy as np
+import os
+
+# called when the deployment is created or updated
+def init():
+    global model
+    # get the path to the registered model file and load it
+    model_path = os.path.join(os.getenv('AZUREML_MODEL_DIR'), 'model.pkl')
+    model = joblib.load(model_path)
+
+# called when a request is received
+def run(raw_data):
+    # get the input data as a numpy array
+    data = np.array(json.loads(raw_data)['data'])
+    # get a prediction from the model
+    predictions = model.predict(data)
+    # return the predictions as any JSON serializable format
+    return predictions.tolist()
+```
+
+
+
+To create an environment using a base Docker image, you can define the Conda dependencies in a `conda.yml` file:
+
+```
+name: basic-env-cpu
+channels:
+  - conda-forge
+dependencies:
+  - python=3.7
+  - scikit-learn
+  - pandas
+  - numpy
+  - matplotlib
+```
+
+Then, to create the environment, run the following code:
+
+```
+from azure.ai.ml.entities import Environment
+
+env = Environment(
+    image="mcr.microsoft.com/azureml/openmpi3.1.2-ubuntu18.04",
+    conda_file="./src/conda.yml",
+    name="deployment-environment",
+    description="Environment created from a Docker image plus Conda environment.",
+)
+ml_client.environments.create_or_update(env)
+```
+
+```
+from azure.ai.ml.entities import ManagedOnlineDeployment, CodeConfiguration
+
+model = Model(path="./model",
+
+blue_deployment = ManagedOnlineDeployment(
+    name="blue",
+    endpoint_name="endpoint-example",
+    model=model,
+    environment="deployment-environment",
+    code_configuration=CodeConfiguration(
+        code="./src", scoring_script="score.py"
+    ),
+    instance_type="Standard_DS2_v2",
+    instance_count=1,
+)
+
+ml_client.online_deployments.begin_create_or_update(blue_deployment).result()
+```
+
+
+
+# Deploy a model to a batch endpoint
+
+In many production scenarios, long-running tasks that deal with large amounts of data are performed as **batch** operations. In machine learning, ***batch inferencing*** is used to asynchronously apply a predictive model to multiple cases and write the results to a file or database.
