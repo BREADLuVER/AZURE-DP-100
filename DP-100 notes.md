@@ -39,19 +39,52 @@ When you use **Azure Machine Learning**, **Azure Databricks**, or **Azure Synaps
 
 ### Azure Synapse Analytics (**Azure Synapse Pipelines**)
 
+Best for real-time analytics, machine learning, and advanced data engineering tasks.
+
 - copy data from one source to a data store using connectors
-- use **mapping data flow** or use a language like SQL, Python, or R for data transformation
-- choose between different types of compute that can handle large data transformations at scale: server-less SQL pools, dedicated SQL pools, or Spark pools.
+- use **mapping data flow** or use a language like SQL, Python, or R for <u>*data transformation*</u>
+- choose between different types of compute that can handle <u>*large data transformations at scale*</u>: server-less SQL pools, dedicated SQL pools, or Spark pools.
+
+
 
 ### Azure Data bricks
 
+Best for comprehensive data warehousing, large-scale data integration, and analytics.
+
 Azure Data-bricks allows you to define your pipelines in a notebook or use code-first tools like SQL, Python, or R to create your pipelines, which you can schedule to run. uses Spark clusters
+
+
 
 ### Azure Machine Learning
 
-Create a pipeline with the Designer, or by creating a collection of scripts. Can also extract, transform, and store the data in preparation for training. Uses clusters 
+End-to-end machine learning lifecycle management.
+
+Create a pipeline with the Designer, or by creating a collection of scripts. Can also extract, transform, and store the data in preparation for training. Uses clusters.
 
 Whenever you want to perform *all tasks within the same tool*, creating and scheduling an Azure Machine Learning pipeline to run with the on-demand compute cluster may best suit your needs.
+
+```
+from azure.ai.ml import MLClient
+from azure.ai.ml.compute import DatabricksCompute
+from azure.identity import DefaultAzureCredential
+
+# Initialize MLClient
+credential = DefaultAzureCredential()
+ml_client = MLClient(subscription_id, resource_group, workspace_name, credential)
+
+# Define the Databricks compute target
+databricks_compute = DatabricksCompute(
+    name="my_databricks_compute",
+    resource_id="<Databricks Resource ID>",
+    workspace_url="<Databricks Workspace URL>",
+    access_token="<Databricks Access Token>",
+    cluster_id="<Databricks Cluster ID>"
+)
+
+# Create or update the Databricks compute target
+ml_client.compute.create_or_update(databricks_compute)
+
+```
 
 
 
@@ -108,8 +141,6 @@ CPU vs GPU vs Spark
 If you need **real-time predictions**, you need compute that is always available and able to return the results (almost) immediately. **Container** technologies like *Azure Container Instance* (ACI) and *Azure Kubernetes Service* (AKS) are ideal for such scenarios as they provide a lightweight infrastructure for your deployed model.
 
 Alternatively, if you need **batch predictions**, you need compute that can handle a large workload. Ideally, you'd use a **compute cluster** that can score the data in *parallel* batches by using multiple nodes.
-
-
 
 
 
@@ -220,8 +251,54 @@ which you can configure in the **Access control** tab
 
 Additionally, Azure Machine Learning has specific built-in roles you can use:
 
-- **AzureML Data Scientist**: Can perform all actions within the workspace, except for creating or deleting compute resources, or editing the workspace settings.
-- **AzureML Compute Operator**: Is allowed to create, change, and manage access the compute resources within a workspace.
+- **AzureML Data Scientist**: Can perform all actions within the workspace, <u>except for creating or deleting</u> compute resources, or editing the workspace settings.
+- **AzureML Compute Operator**: Is allowed to create, change, and <u>manage access</u> the compute resources within a workspace.
+
+
+
+### Summary of the Machine Learning Workflow
+
+#### 1. **Environments**
+
+- **Development Environment**: Initial setup where data scientists and engineers write and test code. Tools like Jupyter Notebooks, IDEs, and version control systems (e.g., Git) are used.
+- **Staging Environment**: Intermediate stage for testing and validation before production. Includes CI/CD pipelines and testing frameworks.
+- **Production Environment**: Final stage where models are deployed for real-time use. Uses services like Azure Kubernetes Service (AKS) or cloud environments for scalability and reliability.
+
+#### 2. **Assets**
+
+- **Definition**: Components such as datasets, models, and experiment results that are used and produced throughout the ML lifecycle.
+- **Management**: Handled within the ML platform (e.g., Azure ML workspace), ensuring versioning and tracking for reproducibility.
+
+#### 3. **Signature**
+
+- **Python Function Signature**: Defines input parameters and types for Python functions, ensuring correct data handling.
+- **Tensor Signature**: Specifies the shape and type of tensors for deep learning models, crucial for frameworks like TensorFlow and PyTorch.
+
+#### 4. **Flavor**
+
+- **Definition**: Specific configuration for a model based on the machine learning framework used (e.g., Scikit-learn, TensorFlow, PyTorch).
+- **Purpose**: Ensures compatibility and standardization, facilitating model saving, loading, and deployment.
+
+#### 5. **Models**
+
+- **Training**: Models are trained using algorithms on prepared datasets.
+- **Logging**: Models, along with their configurations and metrics, are logged for tracking and reproducibility.
+- **Deployment**: Models are deployed to production environments using specified flavors, ensuring they can be served correctly.
+
+#### 6. **Datastores**
+
+- **Definition**: Abstractions over storage services for managing data access.
+- Auto-Created Datastores:
+  - `workspaceblobstore`: Azure Blob Storage for large datasets.
+  - `workspacefilestore`: Azure File Storage for file-based data.
+- **Common Additional Datastore**: Azure Data Lake Storage (ADLS) for handling large volumes of structured and unstructured data.
+
+#### 7. **Artifacts**
+
+- **Definition**: Files and outputs generated during the ML process, including logs, datasets, and trained models.
+- **Management**: Stored and managed in the ML platform’s artifact storage, ensuring accessibility and versioning.
+
+
 
 
 
@@ -238,9 +315,9 @@ The resources in Azure Machine Learning include:
 
 ## +Create and manage compute resources
 
-- **Compute instances**: Similar to a virtual machine in the cloud, managed by the workspace. Ideal to use as a development environment to run (Jupyter) notebooks.
-- **Compute clusters**: On-demand clusters of CPU or GPU compute nodes in the cloud, managed by the workspace. Ideal to use for production workloads as they automatically scale to your needs.
-- **Kubernetes clusters**: Allows you to create or attach an Azure Kubernetes Service (AKS) cluster. Ideal to deploy trained machine learning models in production scenarios.
+- **Compute instances**: Similar to a virtual machine in the cloud, managed by the workspace. Ideal to use as a <u>development environment</u> to run (Jupyter) notebooks.
+- **Compute clusters**: On-demand clusters of CPU or GPU compute nodes in the cloud, managed by the workspace. Ideal to use for <u>production workloads</u> as they automatically scale to your needs.
+- **Kubernetes clusters**: Allows you to <u>create or attach</u> an Azure Kubernetes Service (AKS) cluster. Ideal to deploy trained machine learning models in production scenarios.
 - **Attached computes**: Allows you to attach other Azure compute resources to the workspace, like Azure Databricks or Synapse Spark pools.
 - **Serverless compute**: A fully managed, on-demand compute you can use for training jobs.
 
@@ -261,15 +338,15 @@ Assets are created and used at various stages of a project and include:
 
 - Models
   - pickle file (`.pkl` extension) for storage
-  - when create a **model** in the workspace, specify the *name* and *version*
+  - when create a **model** in the workspace, specify the <u>*name* and *version*</u>
 - Environments
   - Environments specify software packages, environment variables, and software settings to run scripts
 - Data
   - You can use data assets to easily access data every time, without having to provide authentication 
-  - Path, name, and version
+  - <u>Path, name, and version</u>
 - Components
   - Reuse code basically
-  - you have to specify the *name*, *version*, code, and *environment*
+  - you have to specify the <u>*name*, *version*, code, and *environment*</u>
   - You can use components when creating **pipelines**. A component therefore often represents a step in a pipeline
 
 
@@ -294,6 +371,8 @@ There are different types of jobs depending on how you want to execute a workloa
 
 
 # Explore developer tools for workspace interaction
+
+## +Python SDK
 
 After the Python SDK is installed, you'll need to connect to the workspace
 
@@ -392,7 +471,7 @@ To simplify getting access to the data you want to work with, you can use **data
 - You can **seamlessly access data** during model training (on any supported compute type) without worrying about connection strings or data paths.
 - You can **version** the metadata of the data asset.
 
-There are three main types of data assets you can use:
+There are three main types of data assets you can use: 
 
 1. **URI file**: Points to a specific file.
 2. **URI folder**: Points to a folder.
@@ -583,6 +662,8 @@ returned_job = ml_client.create_or_update(job)
 
 # Auto ML
 
+An approach of training the best machine learning model which requires no coding and minimum skills in machine learning
+
 Before you can run an automated machine learning, you need to create a **data asset** in Azure Machine Learning. In order for AutoML to understand how to read the data, you need to create a **MLTable** data asset that includes the schema of the data.
 
 ```
@@ -664,8 +745,6 @@ returned_job = ml_client.jobs.create_or_update(
 aml_url = returned_job.studio_url
 print("Monitor your job at", aml_url)
 ```
-
-
 
 # MLflow for notebooks
 
@@ -781,7 +860,7 @@ python train.py --training_data diabetes.csv
 
 
 
-# Perform hyperparameter tuning with Azure Machine Learning
+# Perform hyperparameter tuning with  Azure Machine Learning
 
 Data scientists refer to the values determined from the training features as *parameters*, so a different term is required for values that are used to configure training behavior but which are ***not*** derived from the training data - hence the term *hyperparameter*.
 
@@ -845,7 +924,7 @@ There are three main sampling methods available in Azure Machine Learning:
 
 - **Grid sampling**: Tries every possible combination.
 
-- Random sampling
+- **Random sampling**
 
   : Randomly chooses values from the search space.
 
@@ -1120,6 +1199,8 @@ After testing, you can also seamlessly transition to the new version of the mode
 
 ## +Deploy your MLflow model to a managed online endpoint
 
+The easiest way to deploy a model to an online endpoint is to use an **MLflow** model and deploy it to a *managed* online endpoint.
+
 To deploy an MLflow model, you must have model files stored on a local path or with a registered model. You can log model files when training a model by using MLflow tracking.
 
 Next to the model, you also need to specify the compute configuration for the deployment:
@@ -1153,7 +1234,9 @@ ml_client.begin_create_or_update(blue_deployment).result()
 
 
 
-## +Deploy a model to a managed online endpoint
+## +Deploy a NORMAL model to a managed online endpoint
+
+You can choose to deploy a model to a managed online endpoint <u>without using the MLflow model format</u>. To deploy a model, you'll need to create the scoring script and define the environment necessary during inferencing.
 
 To deploy a model, you must have:
 
@@ -1192,8 +1275,6 @@ def run(raw_data):
     # return the predictions as any JSON serializable format
     return predictions.tolist()
 ```
-
-
 
 To create an environment using a base Docker image, you can define the Conda dependencies in a `conda.yml` file:
 
@@ -1245,6 +1326,133 @@ ml_client.online_deployments.begin_create_or_update(blue_deployment).result()
 
 
 
+```
+endpoint.traffic = {"blue": 100}
+ml_client.begin_create_or_update(endpoint).result()
+
+ml_client.online_endpoints.begin_delete(name="endpoint-example")
+```
+
+
+
+## +Test managed online endpoints
+
+You can list all endpoints in the Azure Machine Learning studio, by navigating to the **Endpoints** page. In the **Real-time endpoints** tab, all endpoints are shown.
+
+
+
+For testing, you can also use the Azure Machine Learning Python SDK to invoke an endpoint.
+
+```
+response = ml_client.online_endpoints.invoke(
+    endpoint_name=online_endpoint_name,
+    deployment_name="blue",
+    request_file="sample-data.json",
+)
+
+if response[1]=='1':
+    print("Yes")
+else:
+    print ("No")
+```
+
+
+
 # Deploy a model to a batch endpoint
 
 In many production scenarios, long-running tasks that deal with large amounts of data are performed as **batch** operations. In machine learning, ***batch inferencing*** is used to asynchronously apply a predictive model to multiple cases and write the results to a file or database.
+
+To get batch predictions, you can deploy a model to an endpoint. An **endpoint** is an HTTPS endpoint that you can call to trigger a batch scoring job.
+
+Whenever the endpoint is invoked, a batch scoring job is submitted to the Azure Machine Learning workspace. The job typically uses a **compute cluster** to score multiple inputs. The results can be stored in a datastore, connected to the Azure Machine Learning workspace.
+
+```
+endpoint = BatchEndpoint(
+    name="endpoint-example",
+    description="A batch endpoint",
+)
+
+ml_client.batch_endpoints.begin_create_or_update(endpoint)
+```
+
+
+
+## +Deploy a model to a batch endpoint
+
+You can deploy multiple models to a batch endpoint. Whenever you call the batch endpoint, which triggers a batch scoring job, the **default deployment** will be used unless specified otherwise.
+
+
+
+## +Use compute clusters for batch deployments
+
+The ideal compute to use for batch deployments is the Azure Machine Learning compute cluster. If you want the batch scoring job to process the new data in parallel batches, you need to provision a compute cluster with more than one maximum instances.
+
+<u>To create a compute cluster, you can use the `AMLCompute` class.</u>
+
+```
+from azure.ai.ml.entities import AmlCompute
+
+cpu_cluster = AmlCompute(
+    name="aml-cluster",
+    type="amlcompute",
+    size="STANDARD_DS11_V2",
+    min_instances=0,
+    max_instances=4,
+    idle_time_before_scale_down=120,
+    tier="Dedicated",
+)
+
+cpu_cluster = ml_client.compute.begin_create_or_update(cpu_cluster)
+```
+
+
+
+# Deploy your MLflow model to a batch endpoint
+
+To avoid needed a scoring script and environment, an MLflow model needs to be registered in the Azure Machine Learning workspace before you can deploy it to a batch endpoint.
+
+To register an MLflow model, you'll use the `Model` class, while specifying the model type to be `MLFLOW_MODEL`. To register the model with the Python SDK, you can use the following code:
+
+```
+from azure.ai.ml.entities import Model
+from azure.ai.ml.constants import AssetTypes
+
+model_name = 'mlflow-model'
+model = ml_client.models.create_or_update(
+    Model(name=model_name, path='./model', type=AssetTypes.MLFLOW_MODEL)
+)
+```
+
+
+
+To deploy an MLflow model to a batch endpoint, you'll use the `BatchDeployment` class.
+
+When you configure the model deployment, you can specify:
+
+- `instance_count`: Count of compute nodes to use for generating predictions.
+- `max_concurrency_per_instance`: Maximum number of parallel scoring script runs per compute node.
+- `mini_batch_size`: Number of files passed per scoring script run.
+- `output_action`: What to do with the predictions: `summary_only` or `append_row`.
+- `output_file_name`: File to which predictions will be appended, if you choose `append_row` for `output_action`.
+
+```
+from azure.ai.ml.entities import BatchDeployment, BatchRetrySettings
+from azure.ai.ml.constants import BatchDeploymentOutputAction
+
+deployment = BatchDeployment(
+    name="forecast-mlflow",
+    description="A sales forecaster",
+    endpoint_name=endpoint.name,
+    model=model,
+    compute="aml-cluster",
+    instance_count=2,
+    max_concurrency_per_instance=2,
+    mini_batch_size=2,
+    output_action=BatchDeploymentOutputAction.APPEND_ROW,
+    output_file_name="predictions.csv",
+    retry_settings=BatchRetrySettings(max_retries=3, timeout=300),
+    logging_level="info",
+)
+ml_client.batch_deployments.begin_create_or_update(deployment)
+```
+
